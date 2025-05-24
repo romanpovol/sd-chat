@@ -9,10 +9,10 @@ services:
     networks:
       - chat-net
 
-  console-client:
+  cli-client:
     build:
       context: .
-      dockerfile: console_client/Dockerfile
+      dockerfile: cli-client/Dockerfile
     depends_on:
       - rabbitmq
     networks:
@@ -21,7 +21,7 @@ services:
   gui-client:
     build:
       context: .
-      dockerfile: gui_client/Dockerfile
+      dockerfile: gui-client/Dockerfile
     depends_on:
       - rabbitmq
     environment:
