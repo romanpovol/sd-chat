@@ -17,17 +17,3 @@
 
 ## Быстрый старт
 Описан в Docker
-
-## Структура проекта
-├── cmd/
-│   ├── cli-client/     # Консольный клиент
-│   └── gui-client/     # Графический клиент
-├── internal/
-│   └── rabbitmq/       # Общая логика работы с RabbitMQ
-├── docker-compose.yml  # Конфигурация окружения
-├── Dockerfile.cli      # Сборка CLI клиента
-├── Dockerfile.gui      # Сборка GUI клиента
-├── go.sum              # Зависимости Go
-└── go.mod              # Зависимости Go
-
-
