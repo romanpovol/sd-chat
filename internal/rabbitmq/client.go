@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"fyne.io/fyne/v2/widget"
 	"github.com/google/uuid"
 	"github.com/streadway/amqp"
 )
@@ -22,6 +23,9 @@ type ChatClient struct {
 	ch          *amqp.Channel
 	currentChan string
 	consumerTag string
+
+	Messages *widget.Entry
+	Type     string
 
 	clientID string
 
@@ -103,7 +107,11 @@ func (c *ChatClient) SwitchChannel(channel string) {
 		return
 	}
 
-	go c.ReadMessages(ctx, queue.Name)
+	if c.Type == "gui" {
+		go c.ReadMessagesTo(ctx, queue.Name)
+	} else {
+		go c.ReadMessages(ctx, queue.Name)
+	}
 	c.currentChan = channel
 	fmt.Printf("Switched to channel: %s\n", channel)
 }
@@ -131,6 +139,31 @@ func (c *ChatClient) ReadMessages(ctx context.Context, queueName string) {
 				continue
 			}
 			fmt.Printf("\n[%s] %s\n> ", msg.RoutingKey, msg.Body)
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (c *ChatClient) ReadMessagesTo(ctx context.Context, queueName string) {
+	msgs, err := c.ch.Consume(
+		queueName,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Printf("Consume error: %v", err)
+		return
+	}
+
+	for {
+		select {
+		case msg := <-msgs:
+			c.Messages.SetText(c.Messages.Text + fmt.Sprintf("[%s] %s\n", msg.RoutingKey, msg.Body))
 		case <-ctx.Done():
 			return
 		}
@@ -168,9 +201,6 @@ func (c *ChatClient) SendMessage(message string) error {
 		amqp.Publishing{
 			ContentType: "text/plain",
 			Body:        []byte(message),
-			Headers: amqp.Table{
-				"sender_id": c.clientID,
-			},
 		})
 }
 
