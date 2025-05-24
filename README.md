@@ -16,4 +16,6 @@
 - X11 сервер (для GUI версии в Linux)
 
 ## Быстрый старт
-Описан в Docker
+- docker-compose up --build
+- docker build -t chat-cli -f Dockerfile.cli .
+- docker build -t chat-gui -f Dockerfile.gui .
