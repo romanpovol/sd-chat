@@ -1,0 +1,35 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - chat-net
+
+  cli-client:
+    build:
+      context: .
+      dockerfile: cli-client/Dockerfile
+    depends_on:
+      - rabbitmq
+    networks:
+      - chat-net
+
+  gui-client:
+    build:
+      context: .
+      dockerfile: gui-client/Dockerfile
+    depends_on:
+      - rabbitmq
+    environment:
+      - DISPLAY=${DISPLAY}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    networks:
+      - chat-net
+
+networks:
+  chat-net: {}
