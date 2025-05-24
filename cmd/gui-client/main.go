@@ -46,21 +46,7 @@ func (c *ChatGUI) showLoginWindow() {
 		OnSubmit: func() {
 			loginWindow.Hide()
 
-			serverAddr := serverAddr.Text
-			initChannel := initChannel.Text
-
-			client := rabbitmq.NewClient()
-			defer client.Close()
-
-			err := client.Connect(serverAddr)
-			if err != nil {
-				log.Fatalf("Failed to connect: %v", err)
-			}
-			client.SwitchChannel(initChannel)
-
-			c.client = client
-
-			c.createMainWindow()
+			c.createMainWindow(serverAddr.Text, initChannel.Text)
 
 			c.mainWindow.Show()
 		},
@@ -73,12 +59,11 @@ func (c *ChatGUI) showLoginWindow() {
 	loginWindow.Show()
 }
 
-func (c *ChatGUI) createMainWindow() {
+func (c *ChatGUI) createMainWindow(serverAddr string, initChannel string) {
 	c.mainWindow = c.app.NewWindow("RabbitMQ Chat")
 	c.mainWindow.Resize(fyne.NewSize(600, 400))
 
 	c.messages = widget.NewMultiLineEntry()
-	c.messages.Disable()
 
 	c.input = widget.NewEntry()
 	c.input.SetPlaceHolder("Type message here...")
@@ -137,4 +122,14 @@ func (c *ChatGUI) createMainWindow() {
 		c.client.Close()
 		c.mainWindow.Close()
 	})
+
+	c.client = rabbitmq.NewClient()
+	c.client.Type = "gui"
+	c.client.Messages = c.messages
+
+	err := c.client.Connect(serverAddr)
+	if err != nil {
+		log.Fatalf("Failed to connect: %v", err)
+	}
+	c.client.SwitchChannel(initChannel)
 }
