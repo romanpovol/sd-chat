@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"log"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -8,19 +10,13 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 
-	"github.com/streadway/amqp"
+	"github.com/romanpovol/sd-chat/internal/rabbitmq"
 )
 
-const exchangeName = "chat_exchange"
-
 type ChatGUI struct {
-	app            fyne.App
-	mainWindow     fyne.Window
-	conn           *amqp.Connection
-	ch             *amqp.Channel
-	currentQueue   string
-	currentChannel string
-	consumerTag    string
+	app        fyne.App
+	mainWindow fyne.Window
+	client     *rabbitmq.ChatClient
 
 	messages     *widget.Entry
 	input        *widget.Entry
@@ -38,19 +34,36 @@ func (c *ChatGUI) showLoginWindow() {
 	loginWindow := c.app.NewWindow("Connect to Chat")
 	loginWindow.Resize(fyne.NewSize(400, 200))
 
-	serverEntry := widget.NewEntry()
-	serverEntry.SetPlaceHolder("127.0.0.1:5672")
-	channelEntry := widget.NewEntry()
-	channelEntry.SetPlaceHolder("general")
+	serverAddr := widget.NewEntry()
+	serverAddr.SetPlaceHolder("Write server addr")
+	initChannel := widget.NewEntry()
+	initChannel.SetPlaceHolder("Write init channel")
 
 	form := &widget.Form{
 		Items: []*widget.FormItem{
-			{Text: "Server Address", Widget: serverEntry},
-			{Text: "Initial Channel", Widget: channelEntry},
+			{Text: "Server Address", Widget: serverAddr},
+			{Text: "Initial Channel", Widget: initChannel},
 		},
 		OnSubmit: func() {
 			loginWindow.Hide()
+
+			serverAddr := serverAddr.Text
+			initChannel := initChannel.Text
+
+			client := rabbitmq.NewClient()
+			defer client.Close()
+
+			err := client.Connect(serverAddr)
+			if err != nil {
+				log.Fatalf("Failed to connect: %v", err)
+			}
+			client.SwitchChannel(initChannel)
+
+			c.client = client
+
 			c.createMainWindow()
+
+			c.mainWindow.Show()
 		},
 	}
 
@@ -61,9 +74,6 @@ func (c *ChatGUI) showLoginWindow() {
 	loginWindow.Show()
 }
 
-func (c *ChatGUI) sendMessage() {
-
-}
 func (c *ChatGUI) createMainWindow() {
 	c.mainWindow = c.app.NewWindow("RabbitMQ Chat")
 	c.mainWindow.Resize(fyne.NewSize(600, 400))
@@ -74,7 +84,7 @@ func (c *ChatGUI) createMainWindow() {
 	c.input = widget.NewEntry()
 	c.input.SetPlaceHolder("Type message here...")
 	c.input.OnSubmitted = func(_ string) {
-		c.sendMessage()
+		c.client.SendMessage(c.input.Text)
 		c.input.SetText("")
 	}
 
@@ -86,12 +96,13 @@ func (c *ChatGUI) createMainWindow() {
 			c.status.SetText("Channel name cannot be empty!")
 			return
 		}
-		c.switchChannel(c.channelEntry.Text)
+		c.client.SwitchChannel(c.channelEntry.Text)
 	})
 
 	sendBtn := widget.NewButton("Send", func() {
+		log.Println("SUBMIT " + c.input.Text)
 		if c.input.Text != "" {
-			c.sendMessage()
+			c.client.SendMessage(c.input.Text)
 			c.input.SetText("")
 		}
 	})
@@ -124,17 +135,7 @@ func (c *ChatGUI) createMainWindow() {
 
 	c.mainWindow.SetContent(content)
 	c.mainWindow.SetCloseIntercept(func() {
-		c.disconnect()
+		c.client.Close()
 		c.mainWindow.Close()
 	})
-
-	c.mainWindow.Show()
-}
-
-func (c *ChatGUI) switchChannel(text string) {
-
-}
-
-func (c *ChatGUI) disconnect() {
-
 }
